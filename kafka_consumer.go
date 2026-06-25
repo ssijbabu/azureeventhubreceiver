@@ -66,7 +66,9 @@ func buildKafkaConsumerGroup(config *Config, host component.Host, logger *zap.Lo
 		cfg.Net.SASL.User = "$ConnectionString"
 		cfg.Net.SASL.Password = config.Connection
 		brokers = []string{parsed.FullyQualifiedNamespace + ":9093"}
-		topic = parsed.EntityPath
+		if parsed.EntityPath != nil {
+			topic = *parsed.EntityPath
+		}
 	}
 
 	group := getConsumerGroup(config)

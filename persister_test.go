@@ -13,35 +13,30 @@ import (
 	"go.opentelemetry.io/collector/extension/xextension/storage"
 )
 
-func TestStorageOffsetPersisterUnknownCheckpoint(t *testing.T) {
+func TestStorageCheckpointPersisterUnknownKey(t *testing.T) {
 	client := newMockClient()
 	s := storageCheckpointPersister[checkpointSeqNumber]{
 		storageClient: client,
-		defaultValue:  checkpointSeqNumber{Offset: "-1"},
+		defaultValue:  checkpointSeqNumber{SequenceNumber: -1},
 	}
-	// check we have no match
 	checkpoint, err := s.Read("foo", "bar", "foobar", "foobarfoo")
 	assert.NoError(t, err)
 	assert.NotNil(t, checkpoint)
-	assert.Equal(t, "-1", checkpoint.Offset)
+	assert.Equal(t, int64(-1), checkpoint.SequenceNumber)
 }
 
-func TestStorageOffsetPersisterWithKnownCheckpoint(t *testing.T) {
+func TestStorageCheckpointPersisterRoundTrip(t *testing.T) {
 	client := newMockClient()
 	s := storageCheckpointPersister[checkpointSeqNumber]{
 		storageClient: client,
-		defaultValue:  checkpointSeqNumber{Offset: "-1"},
+		defaultValue:  checkpointSeqNumber{SequenceNumber: -1},
 	}
-	checkpoint := checkpointSeqNumber{
-		Offset:         "foo",
-		SequenceNumber: 2,
-	}
-	err := s.Write("foo", "bar", "foobar", "foobarfoo", checkpoint)
+	written := checkpointSeqNumber{SequenceNumber: 42}
+	err := s.Write("foo", "bar", "foobar", "foobarfoo", written)
 	assert.NoError(t, err)
 	read, err := s.Read("foo", "bar", "foobar", "foobarfoo")
 	assert.NoError(t, err)
-	assert.Equal(t, checkpoint.Offset, read.Offset)
-	assert.Equal(t, checkpoint.SequenceNumber, read.SequenceNumber)
+	assert.Equal(t, written.SequenceNumber, read.SequenceNumber)
 }
 
 // copied from pkg/stanza/adapter/mocks_test.go

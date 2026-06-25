@@ -13,7 +13,7 @@ import (
 	"go.opentelemetry.io/collector/receiver"
 	"go.opentelemetry.io/collector/receiver/xreceiver"
 
-	"github.com/open-telemetry/opentelemetry-collector-contrib/internal/sharedcomponent"
+	"github.com/ssijbabu/azureeventhubreceiver/internal/sharedcomponent"
 	"github.com/ssijbabu/azureeventhubreceiver/internal/metadata"
 )
 

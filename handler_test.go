@@ -25,10 +25,7 @@ type mockHubWrapper struct{}
 
 func (mockHubWrapper) GetRuntimeInformation(context.Context) (*hubRuntimeInfo, error) {
 	return &hubRuntimeInfo{
-		Path:           "foo",
-		CreatedAt:      time.Now(),
-		PartitionCount: 1,
-		PartitionIDs:   []string{"foo"},
+		PartitionIDs: []string{"foo"},
 	}, nil
 }
 
