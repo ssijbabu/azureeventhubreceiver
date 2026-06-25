@@ -131,7 +131,7 @@ func TestHubWrapperAzeventhubImpl_Receive(t *testing.T) {
 			name: "normal event handling",
 			hub:  &mockAzeventHub{},
 			config: &Config{
-				Connection:    "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=abcd;EntityPath=main",
+				EventHub: EventHubConfig{Name: "main", Namespace: "test.servicebus.windows.net", SharedAccessKeyName: "RootManageSharedAccessKey", SharedAccessKey: "abcd"},
 				MaxPollEvents: 2,
 				PollRate:      1,
 			},
@@ -141,7 +141,7 @@ func TestHubWrapperAzeventhubImpl_Receive(t *testing.T) {
 			name: "apply offset",
 			hub:  &mockAzeventHub{},
 			config: &Config{
-				Connection: "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=abcd;EntityPath=main",
+				EventHub: EventHubConfig{Name: "main", Namespace: "test.servicebus.windows.net", SharedAccessKeyName: "RootManageSharedAccessKey", SharedAccessKey: "abcd"},
 				Offset:     "100",
 				PollRate:   1,
 			},
@@ -153,7 +153,7 @@ func TestHubWrapperAzeventhubImpl_Receive(t *testing.T) {
 			name: "apply offset false",
 			hub:  &mockAzeventHub{},
 			config: &Config{
-				Connection: "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=abcd;EntityPath=main",
+				EventHub: EventHubConfig{Name: "main", Namespace: "test.servicebus.windows.net", SharedAccessKeyName: "RootManageSharedAccessKey", SharedAccessKey: "abcd"},
 				Offset:     "100",
 			},
 			expectedOffset: "",
@@ -164,7 +164,7 @@ func TestHubWrapperAzeventhubImpl_Receive(t *testing.T) {
 			name: "prefetch default (zero passes through to SDK default)",
 			hub:  &mockAzeventHub{},
 			config: &Config{
-				Connection: "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=abcd;EntityPath=main",
+				EventHub: EventHubConfig{Name: "main", Namespace: "test.servicebus.windows.net", SharedAccessKeyName: "RootManageSharedAccessKey", SharedAccessKey: "abcd"},
 				PollRate:   1,
 			},
 			expectedPrefetch: 0,
@@ -173,7 +173,7 @@ func TestHubWrapperAzeventhubImpl_Receive(t *testing.T) {
 			name: "prefetch explicit positive",
 			hub:  &mockAzeventHub{},
 			config: &Config{
-				Connection:    "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=abcd;EntityPath=main",
+				EventHub: EventHubConfig{Name: "main", Namespace: "test.servicebus.windows.net", SharedAccessKeyName: "RootManageSharedAccessKey", SharedAccessKey: "abcd"},
 				PollRate:      1,
 				PrefetchCount: 500,
 			},
@@ -183,7 +183,7 @@ func TestHubWrapperAzeventhubImpl_Receive(t *testing.T) {
 			name: "prefetch disabled (negative)",
 			hub:  &mockAzeventHub{},
 			config: &Config{
-				Connection:    "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=abcd;EntityPath=main",
+				EventHub: EventHubConfig{Name: "main", Namespace: "test.servicebus.windows.net", SharedAccessKeyName: "RootManageSharedAccessKey", SharedAccessKey: "abcd"},
 				PollRate:      1,
 				PrefetchCount: -1,
 			},
@@ -197,8 +197,10 @@ func TestHubWrapperAzeventhubImpl_Receive(t *testing.T) {
 			defer cancel()
 
 			h := &hubWrapperAzeventhubImpl{
-				hub:    test.hub,
 				config: test.config,
+			}
+			if test.hub != nil {
+				h.hub = test.hub
 			}
 
 			listener, err := h.Receive(
@@ -249,28 +251,21 @@ func TestHubWrapperAzeventhubImpl_Namespace(t *testing.T) {
 		expectedErrContains string
 	}{
 		{
-			name: "valid connection string",
+			name: "SAS credentials",
 			config: &Config{
-				Connection: "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=abc+AEhE+b8yI=;EntityPath=main",
+				EventHub: EventHubConfig{Name: "main", Namespace: "test.servicebus.windows.net", SharedAccessKeyName: "RootManageSharedAccessKey", SharedAccessKey: "abc+AEhE+b8yI="},
 			},
 			expectedNS: "test",
-		},
-		{
-			name: "invalid connection string",
-			config: &Config{
-				Connection: "bad connection",
-			},
-			expectedErrContains: "failed parsing connection string",
 		},
 		{
 			name: "auth configuration",
 			config: &Config{
 				Auth: &authID,
 				EventHub: EventHubConfig{
-					Namespace: "auth.namespace",
+					Namespace: "auth.servicebus.windows.net",
 				},
 			},
-			expectedNS: "auth.namespace",
+			expectedNS: "auth",
 		},
 	}
 
@@ -305,7 +300,7 @@ func TestReceive_ContinuesAfterError(t *testing.T) {
 	pc := &mockPartitionClient{err: errors.New("receive error")}
 	h := &hubWrapperAzeventhubImpl{
 		hub:    &mockAzeventHub{partitionClient: pc},
-		config: &Config{Connection: "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=Key;SharedAccessKey=Secret;EntityPath=hub", PollRate: 1},
+		config: &Config{EventHub: EventHubConfig{Name: "hub", Namespace: "test.servicebus.windows.net", SharedAccessKeyName: "Key", SharedAccessKey: "Secret"}, PollRate: 1},
 	}
 
 	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
@@ -531,9 +526,9 @@ func TestCreateConsumerClient(t *testing.T) {
 			expectedErrContains: "does not implement azcore.TokenCredential",
 		},
 		{
-			name: "connection string path",
+			name: "SAS credentials path",
 			config: &Config{
-				Connection: "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=Key;SharedAccessKey=Secret;EntityPath=hub",
+				EventHub: EventHubConfig{Name: "hub", Namespace: "test.servicebus.windows.net", SharedAccessKeyName: "Key", SharedAccessKey: "Secret"},
 			},
 			host: componenttest.NewNopHost(),
 		},

@@ -69,9 +69,8 @@ func getConsumerGroup(config *Config) string {
 	return config.ConsumerGroup
 }
 
-// createConsumerClient creates a new Azure Event Hub consumer client.
-// If auth is configured, it uses the auth extension to create the client.
-// Otherwise, it uses the connection string.
+// createConsumerClient creates a new Azure Event Hub consumer client using either
+// an AAD token (auth extension) or SAS credentials from the event_hub block.
 func createConsumerClient(
 	config *Config,
 	host component.Host,
@@ -79,9 +78,6 @@ func createConsumerClient(
 	logger *zap.Logger,
 ) (*azeventhubs.ConsumerClient, error) {
 	if config.Auth != nil {
-		if config.Connection != "" {
-			logger.Warn("both 'auth' and 'connection' are specified, 'connection' will be ignored.")
-		}
 		ext, ok := host.GetExtensions()[*config.Auth]
 		if !ok {
 			return nil, fmt.Errorf("failed to resolve auth extension %q", *config.Auth)
@@ -100,7 +96,7 @@ func createConsumerClient(
 		)
 	}
 	return azeventhubs.NewConsumerClientFromConnectionString(
-		config.effectiveConnection(),
+		config.EventHub.toConnectionString(),
 		"",
 		consumerGroup,
 		&azeventhubs.ConsumerClientOptions{},
@@ -297,17 +293,8 @@ func (h *hubWrapperAzeventhubImpl) getStartPos(
 }
 
 func (h *hubWrapperAzeventhubImpl) namespace() (string, error) {
-	if h.config.Auth != nil {
-		return h.config.EventHub.Namespace, nil
-	}
-	parsed, err := azeventhubs.ParseConnectionString(h.config.effectiveConnection())
-	if err != nil {
-		return "", err
-	}
-
-	// Return the first part of the namespace
 	// Ex: example.servicebus.windows.net => example
-	n := parsed.FullyQualifiedNamespace
+	n := h.config.EventHub.Namespace
 	if s := strings.Split(n, "."); len(s) > 0 {
 		n = s[0]
 	}

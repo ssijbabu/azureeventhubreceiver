@@ -74,7 +74,12 @@ func (m *mockDataConsumer) consume(_ context.Context, event *azureEvent) error {
 
 func TestEventhubHandler_Start(t *testing.T) {
 	config := createDefaultConfig()
-	config.(*Config).Connection = "Endpoint=sb://namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=superSecret1234=;EntityPath=hubName"
+	config.(*Config).EventHub = EventHubConfig{
+		Name:                "hubName",
+		Namespace:           "namespace.servicebus.windows.net",
+		SharedAccessKeyName: "RootManageSharedAccessKey",
+		SharedAccessKey:     "superSecret1234=",
+	}
 
 	ehHandler := &eventhubHandler{
 		settings:     receivertest.NewNopSettings(metadata.Type),
@@ -159,7 +164,12 @@ func (*mockStorageClient) Close(_ context.Context) error {
 
 func TestEventhubHandler_messageHandlerDispatchesToConsumer(t *testing.T) {
 	config := createDefaultConfig()
-	config.(*Config).Connection = "Endpoint=sb://namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=superSecret1234=;EntityPath=hubName"
+	config.(*Config).EventHub = EventHubConfig{
+		Name:                "hubName",
+		Namespace:           "namespace.servicebus.windows.net",
+		SharedAccessKeyName: "RootManageSharedAccessKey",
+		SharedAccessKey:     "superSecret1234=",
+	}
 
 	dc := &mockDataConsumer{}
 	ehHandler := &eventhubHandler{
@@ -191,7 +201,12 @@ func TestEventhubHandler_messageHandlerDispatchesToConsumer(t *testing.T) {
 func TestEventhubHandler_runDistributed_skipsNonDistributed(t *testing.T) {
 	// Verify that the non-distributed path still works when BlobCheckpointStore is nil
 	config := createDefaultConfig()
-	config.(*Config).Connection = "Endpoint=sb://namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=superSecret1234=;EntityPath=hubName"
+	config.(*Config).EventHub = EventHubConfig{
+		Name:                "hubName",
+		Namespace:           "namespace.servicebus.windows.net",
+		SharedAccessKeyName: "RootManageSharedAccessKey",
+		SharedAccessKey:     "superSecret1234=",
+	}
 
 	ehHandler := &eventhubHandler{
 		settings:     receivertest.NewNopSettings(metadata.Type),
@@ -336,7 +351,12 @@ func (m *mockProcessorPartitionClient) Close(_ context.Context) error {
 
 func TestEventhubHandler_closeWithStorageClient(t *testing.T) {
 	config := createDefaultConfig()
-	config.(*Config).Connection = "Endpoint=sb://namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=superSecret1234=;EntityPath=hubName"
+	config.(*Config).EventHub = EventHubConfig{
+		Name:                "hubName",
+		Namespace:           "namespace.servicebus.windows.net",
+		SharedAccessKeyName: "RootManageSharedAccessKey",
+		SharedAccessKey:     "superSecret1234=",
+	}
 
 	ehHandler := &eventhubHandler{
 		settings:     receivertest.NewNopSettings(metadata.Type),

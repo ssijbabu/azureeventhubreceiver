@@ -20,8 +20,6 @@ import (
 	"github.com/ssijbabu/azureeventhubreceiver/internal/metadata"
 )
 
-const testConnection = "Endpoint=sb://namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=superSecret1234=;EntityPath=hubName"
-
 func newTestEvent(data string) *azureEvent {
 	return &azureEvent{
 		AzEventData: &azeventhubs.ReceivedEventData{
@@ -62,7 +60,12 @@ func otlpTracesJSON(t *testing.T) []byte {
 func newTestReceiver(t *testing.T, signal pipeline.Signal) (*eventhubReceiver, func()) {
 	t.Helper()
 	config := createDefaultConfig().(*Config)
-	config.Connection = testConnection
+	config.EventHub = EventHubConfig{
+		Name:                "hubName",
+		Namespace:           "namespace.servicebus.windows.net",
+		SharedAccessKeyName: "RootManageSharedAccessKey",
+		SharedAccessKey:     "superSecret1234=",
+	}
 
 	settings := receivertest.NewNopSettings(metadata.Type)
 	eventHandler := newEventhubHandler(config, settings)

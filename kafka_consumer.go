@@ -10,7 +10,6 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
-	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs/v2"
 	"github.com/IBM/sarama"
 	"go.opentelemetry.io/collector/component"
 	"go.uber.org/zap"
@@ -37,7 +36,7 @@ func (k *kafkaConsumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSes
 }
 
 // buildKafkaConsumerGroup creates a sarama ConsumerGroup and returns it along with
-// the topic name derived from the config. Auth via SAS connection string or AAD token.
+// the topic name derived from the config. Auth via SAS credentials or AAD token.
 func buildKafkaConsumerGroup(config *Config, host component.Host, logger *zap.Logger) (sarama.ConsumerGroup, string, error) {
 	cfg := newBaseKafkaConsumerConfig()
 
@@ -57,24 +56,12 @@ func buildKafkaConsumerGroup(config *Config, host component.Host, logger *zap.Lo
 		cfg.Net.SASL.TokenProvider = &kafkaAzureTokenProvider{credential: cred}
 		brokers = []string{config.EventHub.Namespace + ":9093"}
 		topic = config.EventHub.Name
-	} else if config.EventHub.hasCredentials() {
+	} else {
 		cfg.Net.SASL.Mechanism = sarama.SASLTypePlaintext
 		cfg.Net.SASL.User = "$ConnectionString"
 		cfg.Net.SASL.Password = config.EventHub.toConnectionString()
 		brokers = []string{config.EventHub.Namespace + ":9093"}
 		topic = config.EventHub.Name
-	} else {
-		parsed, err := azeventhubs.ParseConnectionString(config.Connection)
-		if err != nil {
-			return nil, "", fmt.Errorf("failed to parse connection string for Kafka: %w", err)
-		}
-		cfg.Net.SASL.Mechanism = sarama.SASLTypePlaintext
-		cfg.Net.SASL.User = "$ConnectionString"
-		cfg.Net.SASL.Password = config.Connection
-		brokers = []string{parsed.FullyQualifiedNamespace + ":9093"}
-		if parsed.EntityPath != nil {
-			topic = *parsed.EntityPath
-		}
 	}
 
 	group := getConsumerGroup(config)

@@ -24,15 +24,40 @@ func TestLoadConfig(t *testing.T) {
 
 	authID := component.MustNewID("azureauth")
 
+	sasHub := EventHubConfig{
+		Name:                "hubName",
+		Namespace:           "namespace.servicebus.windows.net",
+		SharedAccessKeyName: "RootManageSharedAccessKey",
+		SharedAccessKey:     "superSecret1234=",
+	}
+
 	tests := []struct {
 		id                  component.ID
 		expected            component.Config
 		expectedErrContains string
 	}{
 		{
-			id: component.NewID(metadata.Type),
+			id:       component.NewID(metadata.Type),
+			expected: &Config{EventHub: sasHub},
+		},
+		{
+			id:                  component.NewIDWithName(metadata.Type, "missing_credentials"),
+			expectedErrContains: "event_hub.name is required",
+		},
+		{
+			id:                  component.NewIDWithName(metadata.Type, "missing_key"),
+			expectedErrContains: "event_hub.shared_access_key is required",
+		},
+		{
+			id:                  component.NewIDWithName(metadata.Type, "offset_without_partition"),
+			expectedErrContains: "cannot use 'offset' without 'partition'",
+		},
+		{
+			id: component.NewIDWithName(metadata.Type, "offset_with_partition"),
 			expected: &Config{
-				Connection: "Endpoint=sb://namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=superSecret1234=;EntityPath=hubName",
+				EventHub:  sasHub,
+				Partition: "foo",
+				Offset:    "1234-5566",
 			},
 		},
 		{
@@ -46,37 +71,17 @@ func TestLoadConfig(t *testing.T) {
 			},
 		},
 		{
-			id:                  component.NewIDWithName(metadata.Type, "missing_connection"),
-			expectedErrContains: "missing connection",
-		},
-		{
-			id:                  component.NewIDWithName(metadata.Type, "invalid_connection_string"),
-			expectedErrContains: "failed parsing connection string",
-		},
-		{
-			id:                  component.NewIDWithName(metadata.Type, "offset_without_partition"),
-			expectedErrContains: "cannot use 'offset' without 'partition'",
-		},
-		{
-			id: component.NewIDWithName(metadata.Type, "offset_with_partition"),
-			expected: &Config{
-				Connection: "Endpoint=sb://namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=superSecret1234=;EntityPath=hubName",
-				Partition:  "foo",
-				Offset:     "1234-5566",
-			},
-		},
-		{
 			id:                  component.NewIDWithName(metadata.Type, "auth_missing_event_hub_name"),
-			expectedErrContains: "event_hub.name is required when using auth",
+			expectedErrContains: "event_hub.name is required",
 		},
 		{
 			id:                  component.NewIDWithName(metadata.Type, "auth_missing_namespace"),
-			expectedErrContains: "event_hub.namespace is required when using auth",
+			expectedErrContains: "event_hub.namespace is required",
 		},
 		{
 			id: component.NewIDWithName(metadata.Type, "blob_checkpoint_store"),
 			expected: &Config{
-				Connection: "Endpoint=sb://namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=superSecret1234=;EntityPath=hubName",
+				EventHub: sasHub,
 				BlobCheckpointStore: &BlobCheckpointStoreConfig{
 					Connection:    "DefaultEndpointsProtocol=https;AccountName=myaccount;AccountKey=mykey;EndpointSuffix=core.windows.net",
 					ContainerName: "eventhub-checkpoints",
@@ -118,33 +123,10 @@ func TestLoadConfig(t *testing.T) {
 			expectedErrContains: "blob_checkpoint_store is mutually exclusive with storage",
 		},
 		{
-			id: component.NewIDWithName(metadata.Type, "event_hub_credentials"),
-			expected: &Config{
-				EventHub: EventHubConfig{
-					Name:                "hubName",
-					Namespace:           "namespace.servicebus.windows.net",
-					SharedAccessKeyName: "RootManageSharedAccessKey",
-					SharedAccessKey:     "superSecret1234=",
-				},
-			},
-		},
-		{
 			id: component.NewIDWithName(metadata.Type, "kafka"),
 			expected: &Config{
-				Protocol:   ProtocolKafka,
-				Connection: "Endpoint=sb://namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=superSecret1234=;EntityPath=hubName",
-			},
-		},
-		{
-			id: component.NewIDWithName(metadata.Type, "kafka_event_hub_credentials"),
-			expected: &Config{
 				Protocol: ProtocolKafka,
-				EventHub: EventHubConfig{
-					Name:                "hubName",
-					Namespace:           "namespace.servicebus.windows.net",
-					SharedAccessKeyName: "RootManageSharedAccessKey",
-					SharedAccessKey:     "superSecret1234=",
-				},
+				EventHub: sasHub,
 			},
 		},
 		{

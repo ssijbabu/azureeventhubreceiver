@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs/v2"
 	"go.opentelemetry.io/collector/component"
 )
 
@@ -25,14 +24,13 @@ type Config struct {
 	// Protocol selects the wire protocol: "amqp" (default) or "kafka".
 	Protocol Protocol `mapstructure:"protocol"`
 
-	// Connection is the full Event Hub connection string. Required when Auth is not set.
-	Connection string `mapstructure:"connection"`
-
-	// EventHub holds Event Hub identity fields used when Auth is set.
+	// EventHub holds the Event Hub identity and credentials.
+	// All four fields are required unless Auth is set, in which case only
+	// Name and Namespace are needed (credentials come from the auth extension).
 	EventHub EventHubConfig `mapstructure:"event_hub"`
 
 	// Auth is the component ID of an auth extension implementing azcore.TokenCredential.
-	// When set, Connection is ignored for credential purposes.
+	// When set, SharedAccessKeyName and SharedAccessKey in EventHub are not needed.
 	Auth *component.ID `mapstructure:"auth"`
 
 	// ConsumerGroup is the Kafka / AMQP consumer group name. Defaults to "$Default".
@@ -65,20 +63,13 @@ type BlobCheckpointStoreConfig struct {
 	ContainerName     string `mapstructure:"container_name"`
 }
 
-// EventHubConfig holds the Event Hub identity fields. When SharedAccessKeyName
-// and SharedAccessKey are both set, a connection string is built from these
-// fields — no raw connection string is needed. Without SAS credentials, this
-// block is used only for auth-extension-based (AAD) authentication.
+// EventHubConfig holds the Event Hub identity and SAS credentials.
+// When Auth is set on the parent Config, only Name and Namespace are required.
 type EventHubConfig struct {
 	Name                string `mapstructure:"name"`
 	Namespace           string `mapstructure:"namespace"`
 	SharedAccessKeyName string `mapstructure:"shared_access_key_name"`
 	SharedAccessKey     string `mapstructure:"shared_access_key"`
-}
-
-// hasCredentials reports whether SAS key credentials are fully specified.
-func (e *EventHubConfig) hasCredentials() bool {
-	return e.SharedAccessKeyName != "" && e.SharedAccessKey != ""
 }
 
 // toConnectionString builds an Event Hub connection string from the struct fields.
@@ -87,15 +78,6 @@ func (e *EventHubConfig) toConnectionString() string {
 		"Endpoint=sb://%s/;SharedAccessKeyName=%s;SharedAccessKey=%s;EntityPath=%s",
 		e.Namespace, e.SharedAccessKeyName, e.SharedAccessKey, e.Name,
 	)
-}
-
-// effectiveConnection returns the connection string to use, building it from
-// event_hub fields when SAS credentials are present there.
-func (config *Config) effectiveConnection() string {
-	if config.EventHub.hasCredentials() {
-		return config.EventHub.toConnectionString()
-	}
-	return config.Connection
 }
 
 func (config *Config) Validate() error {
@@ -110,27 +92,8 @@ func (config *Config) Validate() error {
 }
 
 func (config *Config) validateAMQP() error {
-	if config.Auth != nil {
-		if config.EventHub.Name == "" {
-			return errors.New("event_hub.name is required when using auth")
-		}
-		if config.EventHub.Namespace == "" {
-			return errors.New("event_hub.namespace is required when using auth")
-		}
-	} else if config.EventHub.hasCredentials() {
-		if config.EventHub.Name == "" {
-			return errors.New("event_hub.name is required when using event_hub credentials")
-		}
-		if config.EventHub.Namespace == "" {
-			return errors.New("event_hub.namespace is required when using event_hub credentials")
-		}
-	} else {
-		if config.Connection == "" {
-			return errors.New("missing connection")
-		}
-		if _, err := azeventhubs.ParseConnectionString(config.Connection); err != nil {
-			return err
-		}
+	if err := config.validateEventHub(); err != nil {
+		return err
 	}
 
 	if config.Partition == "" && config.Offset != "" {
@@ -169,28 +132,23 @@ func (config *Config) validateKafka() error {
 		return errors.New("partition and offset are not supported with the Kafka protocol")
 	}
 
-	if config.Auth != nil {
-		if config.EventHub.Name == "" {
-			return errors.New("event_hub.name is required when using auth")
+	return config.validateEventHub()
+}
+
+func (config *Config) validateEventHub() error {
+	if config.EventHub.Name == "" {
+		return errors.New("event_hub.name is required")
+	}
+	if config.EventHub.Namespace == "" {
+		return errors.New("event_hub.namespace is required")
+	}
+	if config.Auth == nil {
+		if config.EventHub.SharedAccessKeyName == "" {
+			return errors.New("event_hub.shared_access_key_name is required")
 		}
-		if config.EventHub.Namespace == "" {
-			return errors.New("event_hub.namespace is required when using auth")
-		}
-	} else if config.EventHub.hasCredentials() {
-		if config.EventHub.Name == "" {
-			return errors.New("event_hub.name is required when using event_hub credentials")
-		}
-		if config.EventHub.Namespace == "" {
-			return errors.New("event_hub.namespace is required when using event_hub credentials")
-		}
-	} else {
-		if config.Connection == "" {
-			return errors.New("missing connection")
-		}
-		if _, err := azeventhubs.ParseConnectionString(config.Connection); err != nil {
-			return err
+		if config.EventHub.SharedAccessKey == "" {
+			return errors.New("event_hub.shared_access_key is required")
 		}
 	}
-
 	return nil
 }

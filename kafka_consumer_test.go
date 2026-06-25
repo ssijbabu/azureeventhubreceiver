@@ -232,23 +232,18 @@ func TestBuildKafkaConsumerGroup_AuthExtensionWrongType(t *testing.T) {
 	assert.ErrorContains(t, err, "does not implement azcore.TokenCredential")
 }
 
-func TestBuildKafkaConsumerGroup_InvalidConnectionString(t *testing.T) {
-	cfg := &Config{
-		Protocol:   ProtocolKafka,
-		Connection: "not-a-valid-connection-string",
-	}
-	_, _, err := buildKafkaConsumerGroup(cfg, componenttest.NewNopHost(), zap.NewNop())
-	assert.ErrorContains(t, err, "failed to parse connection string for Kafka")
-}
-
 func TestBuildKafkaConsumerGroup_SASLPlain_ConfiguredCorrectly(t *testing.T) {
 	// Verifies the SASL/PLAIN path sets the right credentials without
 	// dialling a real broker. The call will fail at the broker connection
 	// stage, but by that point the config has already been applied.
-	conn := "Endpoint=sb://ns.servicebus.windows.net/;SharedAccessKeyName=key;SharedAccessKey=secret;EntityPath=hub"
 	cfg := &Config{
-		Protocol:   ProtocolKafka,
-		Connection: conn,
+		Protocol: ProtocolKafka,
+		EventHub: EventHubConfig{
+			Name:                "hub",
+			Namespace:           "ns.servicebus.windows.net",
+			SharedAccessKeyName: "key",
+			SharedAccessKey:     "secret",
+		},
 	}
 
 	// The broker dial will fail (no real broker), so we only check the error
@@ -256,16 +251,19 @@ func TestBuildKafkaConsumerGroup_SASLPlain_ConfiguredCorrectly(t *testing.T) {
 	_, _, err := buildKafkaConsumerGroup(cfg, componenttest.NewNopHost(), zap.NewNop())
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "failed to create Kafka consumer group")
-	assert.NotContains(t, err.Error(), "failed to parse connection string")
 }
 
 func TestBuildKafkaConsumerGroup_DefaultConsumerGroup(t *testing.T) {
 	// Exercises the getConsumerGroup default when ConsumerGroup is empty.
 	// Expected to fail at broker dial; confirms it reaches that stage.
-	conn := "Endpoint=sb://ns.servicebus.windows.net/;SharedAccessKeyName=key;SharedAccessKey=secret;EntityPath=hub"
 	cfg := &Config{
-		Protocol:   ProtocolKafka,
-		Connection: conn,
+		Protocol: ProtocolKafka,
+		EventHub: EventHubConfig{
+			Name:                "hub",
+			Namespace:           "ns.servicebus.windows.net",
+			SharedAccessKeyName: "key",
+			SharedAccessKey:     "secret",
+		},
 	}
 	_, _, err := buildKafkaConsumerGroup(cfg, componenttest.NewNopHost(), zap.NewNop())
 	// Error is about the broker, not consumer group setup.
