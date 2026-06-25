@@ -65,10 +65,37 @@ type BlobCheckpointStoreConfig struct {
 	ContainerName     string `mapstructure:"container_name"`
 }
 
-// EventHubConfig holds the Event Hub identity fields used when Auth is set.
+// EventHubConfig holds the Event Hub identity fields. When SharedAccessKeyName
+// and SharedAccessKey are both set, a connection string is built from these
+// fields — no raw connection string is needed. Without SAS credentials, this
+// block is used only for auth-extension-based (AAD) authentication.
 type EventHubConfig struct {
-	Name      string `mapstructure:"name"`
-	Namespace string `mapstructure:"namespace"`
+	Name                string `mapstructure:"name"`
+	Namespace           string `mapstructure:"namespace"`
+	SharedAccessKeyName string `mapstructure:"shared_access_key_name"`
+	SharedAccessKey     string `mapstructure:"shared_access_key"`
+}
+
+// hasCredentials reports whether SAS key credentials are fully specified.
+func (e *EventHubConfig) hasCredentials() bool {
+	return e.SharedAccessKeyName != "" && e.SharedAccessKey != ""
+}
+
+// toConnectionString builds an Event Hub connection string from the struct fields.
+func (e *EventHubConfig) toConnectionString() string {
+	return fmt.Sprintf(
+		"Endpoint=sb://%s/;SharedAccessKeyName=%s;SharedAccessKey=%s;EntityPath=%s",
+		e.Namespace, e.SharedAccessKeyName, e.SharedAccessKey, e.Name,
+	)
+}
+
+// effectiveConnection returns the connection string to use, building it from
+// event_hub fields when SAS credentials are present there.
+func (config *Config) effectiveConnection() string {
+	if config.EventHub.hasCredentials() {
+		return config.EventHub.toConnectionString()
+	}
+	return config.Connection
 }
 
 func (config *Config) Validate() error {
@@ -89,6 +116,13 @@ func (config *Config) validateAMQP() error {
 		}
 		if config.EventHub.Namespace == "" {
 			return errors.New("event_hub.namespace is required when using auth")
+		}
+	} else if config.EventHub.hasCredentials() {
+		if config.EventHub.Name == "" {
+			return errors.New("event_hub.name is required when using event_hub credentials")
+		}
+		if config.EventHub.Namespace == "" {
+			return errors.New("event_hub.namespace is required when using event_hub credentials")
 		}
 	} else {
 		if config.Connection == "" {
@@ -141,6 +175,13 @@ func (config *Config) validateKafka() error {
 		}
 		if config.EventHub.Namespace == "" {
 			return errors.New("event_hub.namespace is required when using auth")
+		}
+	} else if config.EventHub.hasCredentials() {
+		if config.EventHub.Name == "" {
+			return errors.New("event_hub.name is required when using event_hub credentials")
+		}
+		if config.EventHub.Namespace == "" {
+			return errors.New("event_hub.namespace is required when using event_hub credentials")
 		}
 	} else {
 		if config.Connection == "" {

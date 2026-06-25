@@ -100,7 +100,7 @@ func createConsumerClient(
 		)
 	}
 	return azeventhubs.NewConsumerClientFromConnectionString(
-		config.Connection,
+		config.effectiveConnection(),
 		"",
 		consumerGroup,
 		&azeventhubs.ConsumerClientOptions{},
@@ -300,7 +300,7 @@ func (h *hubWrapperAzeventhubImpl) namespace() (string, error) {
 	if h.config.Auth != nil {
 		return h.config.EventHub.Namespace, nil
 	}
-	parsed, err := azeventhubs.ParseConnectionString(h.config.Connection)
+	parsed, err := azeventhubs.ParseConnectionString(h.config.effectiveConnection())
 	if err != nil {
 		return "", err
 	}

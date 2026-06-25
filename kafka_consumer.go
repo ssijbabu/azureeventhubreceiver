@@ -57,6 +57,12 @@ func buildKafkaConsumerGroup(config *Config, host component.Host, logger *zap.Lo
 		cfg.Net.SASL.TokenProvider = &kafkaAzureTokenProvider{credential: cred}
 		brokers = []string{config.EventHub.Namespace + ":9093"}
 		topic = config.EventHub.Name
+	} else if config.EventHub.hasCredentials() {
+		cfg.Net.SASL.Mechanism = sarama.SASLTypePlaintext
+		cfg.Net.SASL.User = "$ConnectionString"
+		cfg.Net.SASL.Password = config.EventHub.toConnectionString()
+		brokers = []string{config.EventHub.Namespace + ":9093"}
+		topic = config.EventHub.Name
 	} else {
 		parsed, err := azeventhubs.ParseConnectionString(config.Connection)
 		if err != nil {

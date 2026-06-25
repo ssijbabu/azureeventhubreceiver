@@ -118,10 +118,33 @@ func TestLoadConfig(t *testing.T) {
 			expectedErrContains: "blob_checkpoint_store is mutually exclusive with storage",
 		},
 		{
+			id: component.NewIDWithName(metadata.Type, "event_hub_credentials"),
+			expected: &Config{
+				EventHub: EventHubConfig{
+					Name:                "hubName",
+					Namespace:           "namespace.servicebus.windows.net",
+					SharedAccessKeyName: "RootManageSharedAccessKey",
+					SharedAccessKey:     "superSecret1234=",
+				},
+			},
+		},
+		{
 			id: component.NewIDWithName(metadata.Type, "kafka"),
 			expected: &Config{
 				Protocol:   ProtocolKafka,
 				Connection: "Endpoint=sb://namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=superSecret1234=;EntityPath=hubName",
+			},
+		},
+		{
+			id: component.NewIDWithName(metadata.Type, "kafka_event_hub_credentials"),
+			expected: &Config{
+				Protocol: ProtocolKafka,
+				EventHub: EventHubConfig{
+					Name:                "hubName",
+					Namespace:           "namespace.servicebus.windows.net",
+					SharedAccessKeyName: "RootManageSharedAccessKey",
+					SharedAccessKey:     "superSecret1234=",
+				},
 			},
 		},
 		{
