@@ -11,7 +11,7 @@ import (
 var (
 	Type           = component.MustNewType("azure_event_hub")
 	DeprecatedType = component.MustNewType("azureeventhub")
-	ScopeName      = "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/azureeventhubreceiver"
+	ScopeName      = "github.com/ssijbabu/azureeventhubreceiver"
 )
 
 const (

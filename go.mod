@@ -1,4 +1,4 @@
-module github.com/open-telemetry/opentelemetry-collector-contrib/receiver/azureeventhubreceiver
+module github.com/ssijbabu/azureeventhubreceiver
 
 go 1.25.0
 
